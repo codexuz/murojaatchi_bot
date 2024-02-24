@@ -14,6 +14,7 @@ app.listen(PORT, () => {
 const adminChatId = 6392652983;
 
 const keyboard = Keyboard.make(["Murojaat yo'llash"]).reply()
+const Adminkeyboard = Keyboard.make(["Murojaatchilar"]).reply()
 
 // Scene 1: Name Scene
 const nameScene = new WizardScene('nameScene',
@@ -36,16 +37,12 @@ const nameScene = new WizardScene('nameScene',
 );
 
 
-// Function to forward user's name and ideas to admin
 async function forwardToAdmin(ctx, data) {
-     // Replace ADMIN_CHAT_ID with the chat ID of the admin
-
-    // Construct the message to be forwarded
-    const message = `👤 <b>Murojaatchi:</b> ${data.fullName}\n💡 <b>Murojaat matni:</b> ${data.ideas}`;
+    // Replace ADMIN_CHAT_ID with the chat ID of the admin
 
     try {
         // Forward the message to the admin
-        await ctx.telegram.sendMessage(adminChatId, message, { parse_mode: 'HTML' });
+        await ctx.telegram.forwardMessage(adminChatId, ctx.message.chat.id, ctx.message.message_id);
     } catch (error) {
         console.error("Error forwarding message to admin:", error);
     }
@@ -110,7 +107,7 @@ bot.start((ctx) => {
     ctx.replyWithChatAction('typing');
     
     if (ctx.message.chat.id === adminChatId) {
-        ctx.replyWithHTML('Assalomu alaykum, <b>Admin</b>');
+        ctx.replyWithHTML('Assalomu alaykum, <b>Admin</b>', Adminkeyboard);
     } else {
         setTimeout(async () => {
             ctx.replyWithHTML(`Assalomu alaykum, <b>${ctx.message.chat.first_name || ctx.message.chat.username}</b>!  <b>"XATIRCHI YOSHLARI"</b> kanali murojaat botiga xush kelibsiz!`, keyboard);
@@ -121,6 +118,8 @@ bot.start((ctx) => {
             });
         }, 200);
     }
+    // Leave the current scene
+    ctx.scene.leave();
 });
 
 // Command handler for "Murojaat yo'llash"
@@ -128,5 +127,41 @@ bot.hears("Murojaat yo'llash", async (ctx) => {
     // Start the Name Scene
     ctx.scene.enter('nameScene');
 });
+
+
+
+async function getAllUsers() {
+  const usersCollection = collection(db, 'users');
+  const usersSnapshot = await getDocs(usersCollection);
+  const users = [];
+  
+  usersSnapshot.forEach((doc) => {
+    users.push(doc.data());
+  });
+
+  return users;
+}
+
+// Modify your bot command to display all users
+bot.hears('Murojaatchilar', async (ctx) => {
+  ctx.reply('Barcha murojaatchilar...');
+  
+  try {
+    const users = await getAllUsers();
+    if (users.length > 0) {
+      let usersList = "<b>Murojaatchilar ro'yxati:</b>\n\n";
+      users.forEach(user => {
+        usersList += `- <b>Ismi:</b> ${user.name || "Noma'lum"}\n <b>Username:</b> @${user.username || "Noma'lum"}\n <b>ID:</b> ${user.user_id}\n\n`;
+      });
+      ctx.replyWithHTML(usersList);
+    } else {
+      ctx.reply('Murojaatchi topilmadi.');
+    }
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    ctx.reply('An error occurred while fetching users.');
+  }
+});
+
 
 bot.launch();
